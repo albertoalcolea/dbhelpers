@@ -5,6 +5,8 @@ Database connections and cursors with stereoids.
 
 This is not an ORM, is a set of useful utilities and helpers to work with raw queries using the Python Database API Specification.
 
+*** UNDER DEVELOPMENT ***
+
 Installation
 ------------
 
