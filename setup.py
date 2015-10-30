@@ -30,6 +30,8 @@ setup(
     url='http://albertoalcolea.com',
     packages=['dbhelpers'],
     package_dir={'dbhelpers': 'dbhelpers'},
+    package_data={'': ['LICENSE']},
+    include_package_data=True,
     install_requires=requires,
     license='Apache 2.0',
     zip_safe=False,
