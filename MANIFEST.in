@@ -1,2 +1,4 @@
 include README.md
-prune *.pyc
+include LICENSE
+include requirements.txt
+include test.py

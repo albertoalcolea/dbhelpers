@@ -16,8 +16,7 @@ with open('README.md', 'r') as f:
     readme = f.read()
 
 
-with open('requirements.txt', 'r') as f:
-    requires = f.readlines()
+requires = []
 
 
 setup(
