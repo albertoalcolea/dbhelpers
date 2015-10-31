@@ -71,6 +71,11 @@ The cursor is executed inside a `with` block. When the block ends the cursor is 
 
 If `commit=True` (default) and an exception is thrown inside the `with` block, `cm_cursor` calls the `conn.rollback()` method instead of `conn.commit()`
 
+In Python 2.7 and 3.x you can get the connection object and the cursor object of the context managers in a single with statment:
+
+    with customconn('mydb') as conn, cm_cursor(conn) as cursor:
+        # Do something ...
+
 #### Fetchiter
 
 `fetchiter` can be used as a generator for large recordsets:
