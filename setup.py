@@ -22,7 +22,7 @@ requires = []
 setup(
 	name='dbhelpers',
     version=version,
-    description='Database connections and cursors with stereoids.',
+    description='Database helpers and utilities .',
     long_description=readme,
     author='Alberto Alcolea',
     author_email='albertoalcolea@gmail.com',

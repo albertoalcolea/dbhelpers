@@ -1,19 +1,57 @@
 from collections import namedtuple
 
 
-def fetchiter(cursor, size=1000, batch=False):
+class cm_cursor(object):
+    """
+    Aux class to use a cursor with a context manager and commit the changes when the
+    cursor is closed.
+    If it is called with commit=False the cursor is closed without commit anything.
+    If an exception is thrown and commit=True, calls the connection.rollback method.
+    """
+    def __init__(self, connection, commit=True, **kwargs):
+        self.connection = connection
+        self.cursor = connection.cursor(**kwargs)
+        self.commit = commit
+
+    def __enter__(self):
+        return self.cursor
+
+    def __exit__(self, exc, value, tb):
+        if self.commit:
+            if exc:
+                self.connection.rollback()
+            else:
+                self.connection.commit()
+        if self.cursor:
+            self.cursor.close()
+
+
+def fetchiter(cursor, size=1000, batch=False, server_cursor=None):
     """
     Use a generator as an iterator for fetching large db record sets.
 
     Example:
       for row in fetchiter(cursor):
         ...
-    or if you use a dbhelpers cursor with stereoids:
-      for row in cursor.fetchiter():
-        ...
+
+    Only for PostgreSQL
+    -------------------
+    You can use a previous server cursor declared as:
+    `DECLARE {C} CURSOR FOR SELECT * FROM ...` where {C} is a string with the
+    server cursor name.
+
+    Then use the parameter server_cursor={C} where {C} is the cursor name,
+    this will make each iteration runs `FETCH {size} FROM {C}` instead of the
+    whole query.
     """
     while True:
-        results = cursor.fetchmany(size)
+        if server_cursor is None:
+            # Standar cursor
+            results = cursor.fetchmany(size)
+        else:
+            # PostgreSQL server side cursor
+            cursor.execute("FETCH %s FROM {}".format(server_cursor), (size,))
+            results = cursor.fetchall()
         if not results:
             break
         if batch:
@@ -67,18 +105,28 @@ def fetchall_nt(cursor):
         return results
 
 
-def fetchiter_nt(cursor, size=1000, batch=False):
+def fetchiter_nt(cursor, size=1000, batch=False, server_cursor=None):
     """
-    Use a generator as an iterator for fetching large db record sets and return the results as
-    a list of namedtuple instances.
+    Use a generator as an iterator for fetching large db record sets and return the
+    results as a list of namedtuple instances.
 
     Example:
       for row in fetchiter_nt(cursor):
         ...
+
+    Only for PostgreSQL
+    -------------------
+    You can use a previous server cursor declared as:
+    `DECLARE {C} CURSOR FOR SELECT * FROM ...` where {C} is a string with the
+    server cursor name.
+
+    Then use the parameter server_cursor={C} where {C} is the cursor name,
+    this will make each iteration runs `FETCH {size} FROM {C}` instead of the
+    whole query.
     """
     names = ' '.join(d[0] for d in cursor.description)
     klass = namedtuple('Results', names)
-    for result in fetchiter(cursor, size, batch):
+    for result in fetchiter(cursor, size, batch, server_cursor):
         if batch:
             yield map(klass._make, result)
         else:

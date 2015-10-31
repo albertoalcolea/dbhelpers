@@ -1,10 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
-import types
-
 import getpass
-
-from cursors import extra_cursor, cm_cursor
 
 
 class BaseConnection(object):
@@ -22,9 +18,9 @@ class BaseConnection(object):
     default_port = None
     default_extra_kwargs = {}
 
-    def __init__(self, db=None, user=None, passwd=None, host=None, port=None, steroids=True, **kwargs):
+    def __init__(self, db=None, user=None, passwd=None, host=None, port=None, **kwargs):
         """
-        Connection with steroids.
+        Connection with default params and context manager utilities.
 
         Valid args (if any is None, use the default class attribute):
           - db: database name/path
@@ -32,7 +28,6 @@ class BaseConnection(object):
           - passwd: database password
           - host: database host
           - port: database port
-          - steroids: use a cursor with steroids instead of the standard cursor (default True)
           + Any kwargs used in the original connect method.
         """
         self.db = db if db else self.default_db
@@ -42,35 +37,14 @@ class BaseConnection(object):
         self.port = port if port else self.default_port
         self.extra_kwargs = self.default_extra_kwargs.copy()
         self.extra_kwargs.update(kwargs)
-        self.steroids = steroids
         self.connection = None
 
     @abstractmethod
-    def _connect(self):
+    def connect(self):
         """
         Returns a connection object from the concrete backend.
         """
         pass
-
-    @staticmethod
-    def add_stereoids(connection):
-        """
-        Add support for the cursor with stereoids to an existing connection.
-        """
-        connection._old_cursor = connection.cursor
-        connection.cursor = types.MethodType(extra_cursor, connection)
-        connection.cm_cursor = types.MethodType(cm_cursor, connection)
-
-    def connect(self, steroids=False):
-        """
-        Return a new connection.
-        If stereoids = True, the cursors will be alsways a cursors with stereoids,
-        else depends on the __init__ steroids param.
-        """
-        connection = self._connect()
-        if steroids or self.steroids:
-            self.add_stereoids(connection)
-        return connection
 
     def __enter__(self):
         """
@@ -99,7 +73,7 @@ class Psycopg2Connection(BaseConnection):
     """
     default_port = 5432
 
-    def _connect(self):
+    def connect(self):
         import psycopg2
         return psycopg2.connect(database=self.db, user=self.user, password=self.passwd,
             host=self.host, port=self.port, **self.extra_kwargs)
@@ -111,7 +85,7 @@ class MySQLdbConnection(BaseConnection):
     """
     default_port = 3306
 
-    def _connect(self):
+    def connect(self):
         import MySQLdb
         return MySQLdb.connect(db=self.db, user=self.user, passwd=self.passwd,
             host=self.host, port=self.port, **self.extra_kwargs)
@@ -121,6 +95,6 @@ class Sqlite3Connection(BaseConnection):
     """
     Sqlite3 backend.
     """
-    def _connect(self):
+    def connect(self):
         import sqlite3
         return sqlite3.connect(database=self.db, **self.extra_kwargs)

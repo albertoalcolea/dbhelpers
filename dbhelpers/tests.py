@@ -1,9 +1,9 @@
 import unittest
-from mock import Mock, patch
+from mock import Mock, call
 
 from connections import BaseConnection
-from cursors import extra_cursor, cm_cursor
-from helpers import fetchiter, fetchone_nt, fetchmany_nt, fetchall_nt
+from helpers import cm_cursor, fetchiter, fetchone_nt, fetchmany_nt, fetchall_nt, fetchiter_nt
+from postgres import ServerCursor
 
 
 class ConnectionsTestCase(unittest.TestCase):
@@ -19,7 +19,7 @@ class ConnectionsTestCase(unittest.TestCase):
             default_port = 9999
             default_extra_kwargs = {'chartset': 'ut8'}
 
-            def _connect(self_):
+            def connect(self_):
                 """ Creates and returns a new Mock object each call """
                 self.fake_conn = Mock()
                 self.fake_cursor = Mock()
@@ -85,65 +85,8 @@ class ConnectionsTestCase(unittest.TestCase):
         with self.ConnClass() as conn:
             self.assertEqual(conn, self.fake_conn)
 
-    @patch('connections.extra_cursor')
-    def test_steroids(self, extra_cursor_mock):
-        """
-        The steroids are methods added dynamically to a new cursors of an existing
-        connection instance.
-        """
-        cursor_mock = Mock()
-        extra_cursor_mock.return_value = cursor_mock
 
-        # Use steroids by default
-        conn = self.ConnClass().connect()
-        cursor = conn.cursor()
-        self.assertNotEqual(cursor, self.fake_cursor)
-        self.assertEqual(cursor, cursor_mock)
-
-        # Use standard cursor by default
-        concrete = self.ConnClass(steroids=False)
-        conn = concrete.connect()
-        cursor = conn.cursor()
-        self.assertEqual(cursor, self.fake_cursor)
-
-        # Use standard cursor by default but use the connect parameter
-        conn = concrete.connect(steroids=True)
-        cursor = conn.cursor()
-        self.assertEqual(cursor, cursor_mock)
-
-
-class CursorsTestCase(unittest.TestCase):
-    @patch('cursors.helpers')
-    def test_extra_cursor(self, helpers_mock):
-        """
-        Returns a new cursor with the `helpers` methods.
-        """
-        # Default call
-        conn = Mock(spec=['cursor'])
-        cursor_mock = Mock()
-        conn.cursor = Mock(return_value=cursor_mock)
-
-        cursor = extra_cursor(conn)
-        self.assertEqual(cursor, cursor_mock)
-        self.assertTrue(hasattr(cursor, 'fetchiter'))
-        self.assertTrue(hasattr(cursor, 'fetchone_nt'))
-        self.assertTrue(hasattr(cursor, 'fetchmany_nt'))
-        self.assertTrue(hasattr(cursor, 'fetchall_nt'))
-
-        # Call with _old_cursor
-        conn = Mock(spec=['cursor', '_old_cursor'])
-        cursor_mock = Mock()
-        old_cursor_mock = Mock()
-        conn.cursor = Mock(return_value=cursor_mock)
-        conn._old_cursor = Mock(return_value=old_cursor_mock)
-
-        cursor = extra_cursor(conn)
-        self.assertEqual(cursor, old_cursor_mock)
-        self.assertTrue(hasattr(cursor, 'fetchiter'))
-        self.assertTrue(hasattr(cursor, 'fetchone_nt'))
-        self.assertTrue(hasattr(cursor, 'fetchmany_nt'))
-        self.assertTrue(hasattr(cursor, 'fetchall_nt'))
-
+class HelpersTestCase(unittest.TestCase):
     def test_cm_cursor(self):
         """
         Creates a context manager for a cursor and it is able to commit on exit.
@@ -183,12 +126,10 @@ class CursorsTestCase(unittest.TestCase):
         self.assertFalse(conn.commit.called)
         self.assertFalse(conn.rollback.called)
 
-
-class HelpersTestCase(unittest.TestCase):
     def test_fetchiter(self):
         cursor = Mock()
 
-        def test_iterator(cursor, **kwargs):
+        def test_iterator(cursor, use_server_cursor=False, **kwargs):
             cursor.fetchmany = Mock(return_value=[1,2,3])
             num_it = 0
             for row in fetchiter(cursor, **kwargs):
@@ -198,7 +139,10 @@ class HelpersTestCase(unittest.TestCase):
                 num_it += 1
                 if row == 3:
                     # Stop
-                    cursor.fetchmany = Mock(return_value=[])
+                    if use_server_cursor:
+                        cursor.fetchall = Mock(return_value=[])
+                    else:
+                        cursor.fetchmany = Mock(return_value=[])
             self.assertEqual(num_it, 3)
 
         # Standard
@@ -214,6 +158,13 @@ class HelpersTestCase(unittest.TestCase):
             self.assertEqual(row, [1,2])
             # Stop
             cursor.fetchmany = Mock(return_value=[])
+
+        # Server cursor
+        cursor.execute = Mock()
+        cursor.fetchall = Mock(return_value=[1,2,3])
+        test_iterator(cursor, use_server_cursor=True, size=10, server_cursor='C')
+        calls = [call("FETCH %s FROM C", (10,))] * 2
+        cursor.execute.assert_has_calls(calls)
 
     def test_fetchone_nt(self):
         cursor = Mock()
@@ -250,6 +201,63 @@ class HelpersTestCase(unittest.TestCase):
         self.assertEqual(r[1].id, 99)
         self.assertEqual(r[1].status, 'warning')
 
+    def test_fetchiter_nt(self):
+        cursor = Mock()
+        cursor.description = (('id', 3, 2, 11, 11, 0, 0), ('status', 253, 7, 80, 80, 0, 0))
+
+        # Standard
+        cursor.fetchmany = Mock(return_value=((34, 'info'), (99, 'warning')))
+        num_it = 0
+        for row in fetchiter_nt(cursor):
+            self.assertEqual(row.__class__.__name__, 'Results')
+            if num_it == 0:
+                self.assertEqual(row.id, 34)
+                self.assertEqual(row.status, 'info')
+            if num_it == 1:
+                self.assertEqual(row.id, 99)
+                self.assertEqual(row.status, 'warning')
+            if num_it == 2:
+                raise StopIteration
+            num_it += 1
+            if num_it == 2:
+                cursor.fetchmany = Mock(return_value=[])
+        self.assertEqual(num_it, 2)
+
+        # Batch
+        cursor.fetchmany = Mock(return_value=((34, 'info'), (99, 'warning')))
+        num_it = 0
+        for row in fetchiter_nt(cursor, batch=True):
+            self.assertEqual(row.__class__.__name__, 'list')
+            self.assertEqual(row[0].__class__.__name__, 'Results')
+            self.assertEqual(row[0].id, 34)
+            self.assertEqual(row[0].status, 'info')
+            self.assertEqual(row[1].__class__.__name__, 'Results')
+            self.assertEqual(row[1].id, 99)
+            self.assertEqual(row[1].status, 'warning')
+            if num_it == 1:
+                raise StopIteration
+            num_it += 1
+            if num_it == 1:
+                cursor.fetchmany = Mock(return_value=[])
+        self.assertEqual(num_it, 1)
+
+        # Server cursor
+        cursor.fetchall = Mock(return_value=((34, 'info'), (99, 'warning')))
+        num_it = 0
+        for row in fetchiter_nt(cursor, server_cursor='C'):
+            self.assertEqual(row.__class__.__name__, 'Results')
+            if num_it == 0:
+                self.assertEqual(row.id, 34)
+                self.assertEqual(row.status, 'info')
+            if num_it == 1:
+                self.assertEqual(row.id, 99)
+                self.assertEqual(row.status, 'warning')
+            if num_it == 2:
+                raise StopIteration
+            num_it += 1
+            if num_it == 2:
+                cursor.fetchall = Mock(return_value=[])
+        self.assertEqual(num_it, 2)
 
 if __name__ == '__main__':
     unittest.main()

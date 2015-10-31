@@ -1,11 +1,10 @@
 dbhelpers
 =========
 
-Database connections and cursors with stereoids.
+Database helpers and utilities
 
-This is not an ORM, is a set of useful utilities and helpers to work with raw queries using the Python Database API Specification.
+This is not an ORM, is a set of useful utilities to work with raw queries using the Python Database API Specification.
 
-*** UNDER DEVELOPMENT ***
 
 Installation
 ------------
@@ -34,7 +33,7 @@ Use a default connection class for your db backend:
         cursor = conn.cursor()
         ...
 
-Or create a custom connection class with default parameters:
+Or create a custom connection class with your default parameters:
 
     from dbhelpers import MySQLdbConnection
 
@@ -49,17 +48,16 @@ Or create a custom connection class with default parameters:
         cursor = conn.cursor()
         ....
 
-### Cursors with steroids
 
-By default the default cursor is overrided with a cursor with steroids:
- * *New methods*: `fetchiter`, `fetchone_nt`, `fetchmany_nt`, `fetchall_nt`
- * *New context manager* for autocommit, autorollback and close the cursor
+### Helpers
 
-If you want to use the default cursor:
+The package include some useful utilities to work with database cursors.
 
-     conn = customconn('mydb', steroids=False).connect()
- 
-### Cursor as a context manager:
+#### Cursor as a context manager:
+
+The cursor is executed inside a `with` block. When the block ends the cursor is closed. Also does a `connection.commit()` when the block ends if `commit=True` (True by default).
+
+    from dbhelpers import cm_cursor
 
     # With autocommit
     with customconn('mydb') as conn:
@@ -71,53 +69,62 @@ If you want to use the default cursor:
         with cm_cursor(conn, commit=False) as cursor:
             (...)
 
-If `commit=True` (default) and an exception is thrown inside the cm_cursor with block, `cm_cursor` calls the `conn.rollback()` method instead of `conn.commit()`
+If `commit=True` (default) and an exception is thrown inside the `with` block, `cm_cursor` calls the `conn.rollback()` method instead of `conn.commit()`
 
-
-### Extra methods
+#### Fetchiter
 
 `fetchiter` can be used as a generator for large recordsets:
 
+    from dbhelpers import fetchiter
+
     with customconn('mydb') as conn:
         with cm_cursor(conn) as cursor:
             cursor.execute("SELECT * FROM bigtable")
-            for row in cursor.fetchiter():
+            for row in fetchiter(cursor):
                 # Do something
 
-The `fetchiter` method does not retrieve all rows in memory, do sucessive calls in blocks to retrieve all data.
+The `fetchiter` function does not copy all rows in memory, do sucessive calls in blocks to retrieve all data. The default block size is 1000.
 
-You can get the blocks or change the size of the block:
+The `cursor.fetchall()` method can fill the process memory easily if there are a lot of register to return. `fetchiter` do calls to `cursor.fetchmany()` iteratively until there are no more data  to return. The `fetchiter` function behaves like an iterator.
+
+You can get the whole blocks or change the size of the block:
 
     with customconn('mydb') as conn:
         with cm_cursor(conn) as cursor:
             cursor.execute("SELECT * FROM bigtable")
-            for block in cursor.fetchiter(size=50, batch=True)
+            for block in fetchiter(cursor, size=50, batch=True):
                 # Do something, block is a tuple with 50 rows
 
+#### PostgreSQL server cursor
 
-`fetchone_nt`, `fetchmany_nt` and `fetchall_nt` returns the rows as NamedTuples:
+Also, `fetchiter` allows work with PostgreSQL server cursors previously declared.
+
+Instead of the standard `fetchiter` behavior, which do a query to a server, the server calculates the whole recordset, and `fetchiter` retrieve the results iteratively to avoid fill the process memory, a server cursor runs the pseudo-iterator on a Postgres server and calculates the partial recordset in blocks iteratively. 
+
+    from dbhelpers import fetchiter
+
+    with customconn('mydb') as conn:
+        with cm_cursor(conn) as cursor:
+            cursor.execute("DECLARE C CURSOR FOR SELECT * FROM bigtable")
+            for row in fetchiter(cursor, server_cursor='C'):
+                # Do something
+            cursor.execute("CLOSE C")
+
+`fetchiter` can return the server cursor results as the above example (as an interator or as a block), an you can change the block size. The default block size is 1000.
+
+#### Rows as NamedTuples
+
+`fetchone_nt`, `fetchmany_nt`, `fetchall_nt` `fetchiter_nt` returns the rows as NamedTuples:
+
+    from dbhelpers import fetchone_nt, fetchmany_nt, fetchall_nt
 
     with customconn('mydb') as conn:
         with cm_cursor(conn) as cursor:
             cursor.execute("SELECT id, status FROM mytable WHERE id = 23")
-            row = cursor.fetchone_nt()
+            row = fetchone_nt(cursor)
             # Now, row is a NamedTuple with each column mapped as an attribute:
             # >>> row.id
             # 32
             # >>> row.status
             # 'warning'
 
-
-Also, can use the helpers functions (`fetchiter`, `fetchone_nt`, `fetchmany_nt`, `fetchall_nt`) with the standard connection and cursor classes:
-
-    from dbhelpers.helpers import fetchiter
-
-    conn = psycopg2.connect(database='mydb', user='user', passwd='pass', host='localhost')
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM bigtable")
-    for row in fetchiter(cursor):
-        # Do something with row
-
-    cursor.close()
-    conn.close()
