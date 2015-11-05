@@ -23,33 +23,36 @@ Usage
 
 Use a default connection class for your db backend:
 
-    from dbhelpers import Psycopg2Connection
+```python
+from dbhelpers import Psycopg2Connection
 
-    # Simple connection
-    conn = Psycopg2Connection(db='mydb', user='myuser', passwd='mypass').connect()
-    (...)
-    conn.close()
+# Simple connection
+conn = Psycopg2Connection(db='mydb', user='myuser', passwd='mypass').connect()
+(...)
+conn.close()
 
-    # Or using a context manager:
-    with Psycopg2Connection(db='mydb', user='myuser', passwd='mypass') as conn:
-        cursor = conn.cursor()
-        ...
+# Or using a context manager:
+with Psycopg2Connection(db='mydb', user='myuser', passwd='mypass') as conn:
+    cursor = conn.cursor()
+    ...
+```
 
 Or create a custom connection class with your default parameters:
 
-    from dbhelpers import MySQLdbConnection
+```python
+from dbhelpers import MySQLdbConnection
 
-    class customconn(MySQLdbConnection):
-        default_user = 'myuser'
-        default_passwd = 'mypass'
-        default_host = 'localhost'
-        default_port = 13306
-        default_extra_kwargs = {'charset': 'utf8mb4'}
+class customconn(MySQLdbConnection):
+    default_user = 'myuser'
+    default_passwd = 'mypass'
+    default_host = 'localhost'
+    default_port = 13306
+    default_extra_kwargs = {'charset': 'utf8mb4'}
 
-    with customconn('mydb') as conn:
-        cursor = conn.cursor()
-        ....
-
+with customconn('mydb') as conn:
+    cursor = conn.cursor()
+    ....
+```
 
 ### Helpers
 
@@ -59,36 +62,42 @@ The package include some useful utilities to work with database cursors.
 
 The cursor is executed inside a `with` block. When the block ends the cursor is closed. Also does a `connection.commit()` when the block ends if `commit=True` (True by default).
 
-    from dbhelpers import cm_cursor
+```python
+from dbhelpers import cm_cursor
 
-    # With autocommit
-    with customconn('mydb') as conn:
-        with cm_cursor(conn) as cursor:
-            cursor.execute("INSERT INTO mytable (id, status) VALUES (23, 'info')")
+# With autocommit
+with customconn('mydb') as conn:
+    with cm_cursor(conn) as cursor:
+        cursor.execute("INSERT INTO mytable (id, status) VALUES (23, 'info')")
 
-    # Disable autocommit
-    with customconn('mydb') as conn:
-        with cm_cursor(conn, commit=False) as cursor:
-            (...)
+# Disable autocommit
+with customconn('mydb') as conn:
+    with cm_cursor(conn, commit=False) as cursor:
+        (...)
+```
 
 If `commit=True` (default) and an exception is thrown inside the `with` block, `cm_cursor` calls the `conn.rollback()` method instead of `conn.commit()`
 
 In Python 2.7 and 3.x you can get the connection object and the cursor object of the context managers in a single with statment:
 
-    with customconn('mydb') as conn, cm_cursor(conn) as cursor:
-        # Do something ...
+```python
+with customconn('mydb') as conn, cm_cursor(conn) as cursor:
+    # Do something ...
+```
 
 #### Fetchiter
 
 `fetchiter` can be used as a generator for large recordsets:
 
-    from dbhelpers import fetchiter
+```python
+from dbhelpers import fetchiter
 
-    with customconn('mydb') as conn:
-        with cm_cursor(conn) as cursor:
-            cursor.execute("SELECT * FROM bigtable")
-            for row in fetchiter(cursor):
-                # Do something
+with customconn('mydb') as conn:
+    with cm_cursor(conn) as cursor:
+        cursor.execute("SELECT * FROM bigtable")
+        for row in fetchiter(cursor):
+            # Do something
+```
 
 The `fetchiter` function does not copy all rows in memory, do sucessive calls in blocks to retrieve all data. The default block size is 1000.
 
@@ -96,11 +105,13 @@ The `cursor.fetchall()` method can fill the process memory easily if there are a
 
 You can get the whole blocks or change the size of the block:
 
-    with customconn('mydb') as conn:
-        with cm_cursor(conn) as cursor:
-            cursor.execute("SELECT * FROM bigtable")
-            for block in fetchiter(cursor, size=50, batch=True):
-                # Do something, block is a tuple with 50 rows
+```python
+with customconn('mydb') as conn:
+    with cm_cursor(conn) as cursor:
+        cursor.execute("SELECT * FROM bigtable")
+        for block in fetchiter(cursor, size=50, batch=True):
+            # Do something, block is a tuple with 50 rows
+```
 
 #### PostgreSQL server cursor
 
@@ -108,14 +119,16 @@ Also, `fetchiter` allows work with PostgreSQL server cursors previously declared
 
 Instead of the standard `fetchiter` behavior, which do a query to a server, the server calculates the whole recordset, and `fetchiter` retrieve the results iteratively to avoid fill the process memory, a server cursor runs the pseudo-iterator on a Postgres server and calculates the partial recordset in blocks iteratively. 
 
-    from dbhelpers import fetchiter
+```python
+from dbhelpers import fetchiter
 
-    with customconn('mydb') as conn:
-        with cm_cursor(conn) as cursor:
-            cursor.execute("DECLARE C CURSOR FOR SELECT * FROM bigtable")
-            for row in fetchiter(cursor, server_cursor='C'):
-                # Do something
-            cursor.execute("CLOSE C")
+with customconn('mydb') as conn:
+    with cm_cursor(conn) as cursor:
+        cursor.execute("DECLARE C CURSOR FOR SELECT * FROM bigtable")
+        for row in fetchiter(cursor, server_cursor='C'):
+            # Do something
+        cursor.execute("CLOSE C")
+```
 
 `fetchiter` can return the server cursor results as the above example (as an interator or as a block), an you can change the block size. The default block size is 1000.
 
@@ -123,15 +136,17 @@ Instead of the standard `fetchiter` behavior, which do a query to a server, the 
 
 `fetchone_nt`, `fetchmany_nt`, `fetchall_nt` `fetchiter_nt` returns the rows as NamedTuples:
 
-    from dbhelpers import fetchone_nt, fetchmany_nt, fetchall_nt
+```python
+from dbhelpers import fetchone_nt, fetchmany_nt, fetchall_nt
 
-    with customconn('mydb') as conn:
-        with cm_cursor(conn) as cursor:
-            cursor.execute("SELECT id, status FROM mytable WHERE id = 23")
-            row = fetchone_nt(cursor)
-            # Now, row is a NamedTuple with each column mapped as an attribute:
-            # >>> row.id
-            # 32
-            # >>> row.status
-            # 'warning'
+with customconn('mydb') as conn:
+    with cm_cursor(conn) as cursor:
+        cursor.execute("SELECT id, status FROM mytable WHERE id = 23")
+        row = fetchone_nt(cursor)
+        # Now, row is a NamedTuple with each column mapped as an attribute:
+        # >>> row.id
+        # 32
+        # >>> row.status
+        # 'warning'
+```
 
