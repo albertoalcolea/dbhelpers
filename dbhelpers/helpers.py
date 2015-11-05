@@ -87,7 +87,7 @@ def fetchmany_nt(cursor, size=None):
     if not db_res or db_res is None:
         return []
     else:
-        results = map(klass._make, db_res)
+        results = [klass._make(r) for r in db_res]
         return results
 
 
@@ -101,8 +101,7 @@ def fetchall_nt(cursor):
     if not db_res or db_res is None:
         return []
     else:
-        results = map(klass._make, db_res)
-        return results
+        return [klass._make(r) for r in db_res]
 
 
 def fetchiter_nt(cursor, size=1000, batch=False, server_cursor=None):
@@ -128,6 +127,6 @@ def fetchiter_nt(cursor, size=1000, batch=False, server_cursor=None):
     klass = namedtuple('Results', names)
     for result in fetchiter(cursor, size, batch, server_cursor):
         if batch:
-            yield map(klass._make, result)
+            yield [klass._make(r) for r in result]
         else:
             yield klass(*result)

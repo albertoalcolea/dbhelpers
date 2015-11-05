@@ -1,9 +1,8 @@
 import unittest
 from mock import Mock, call
 
-from connections import BaseConnection
-from helpers import cm_cursor, fetchiter, fetchone_nt, fetchmany_nt, fetchall_nt, fetchiter_nt
-from postgres import ServerCursor
+from .connections import BaseConnection
+from .helpers import cm_cursor, fetchiter, fetchone_nt, fetchmany_nt, fetchall_nt, fetchiter_nt
 
 
 class ConnectionsTestCase(unittest.TestCase):
