@@ -1,6 +1,8 @@
 dbhelpers
 =========
 
+[![Build Status](https://travis-ci.org/albertoalcolea/dbhelpers.svg?branch=master)](https://travis-ci.org/albertoalcolea/dbhelpers)
+
 Database helpers and utilities
 
 This is not an ORM, is a set of useful utilities to work with raw queries using the Python Database API Specification.
