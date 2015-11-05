@@ -71,8 +71,7 @@ def fetchone_nt(cursor):
     if db_res is None:
         return None
     else:
-        results = klass(*db_res)
-        return results
+        return klass(*db_res)
 
 
 def fetchmany_nt(cursor, size=None):
@@ -87,8 +86,7 @@ def fetchmany_nt(cursor, size=None):
     if not db_res or db_res is None:
         return []
     else:
-        results = [klass._make(r) for r in db_res]
-        return results
+        return [klass._make(r) for r in db_res]
 
 
 def fetchall_nt(cursor):
