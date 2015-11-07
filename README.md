@@ -16,6 +16,17 @@ The easiest way to install dbhelpers is with pip:
     $ pip install dbhelpers
 
 
+Backends
+--------
+
+The following backends are supported by default:
+ * **PostgreSQL**: with the `psycopg2` adapter: `Psycopg2Connection`
+ * **MySQL**: with the `MySQLdb` adapter: `MySQLdbConnection`
+ * **SQLite3**: with the default adapter of Python: `Sqlite3Connection`
+
+You can extend the functionality of dbhelpers making new connection classes for your custom backends. See the usage section for more information.
+
+
 Usage
 -----
 
@@ -52,6 +63,21 @@ class customconn(MySQLdbConnection):
 with customconn('mydb') as conn:
     cursor = conn.cursor()
     ....
+```
+
+Also you can make a connection class for a custom backend inheriting the abstract class `BaseConnection` and overriding the method `connect`.
+
+```python
+from dbhelpers.connections import BaseConnection
+
+class MyCustomBackendConnection(BaseConnection):
+    default_port = 9876
+
+    def connect(self):
+        """Returns a new connection object."""
+        return customadapter.connect(database=self.db, user=self.user, 
+            password=self.passwd, host=self.host, port=self.port, 
+            **self.extra_kwargs)
 ```
 
 ### Helpers
