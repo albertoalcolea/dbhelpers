@@ -145,6 +145,8 @@ Also, `fetchiter` allows work with PostgreSQL server cursors previously declared
 
 Instead of the standard `fetchiter` behavior, which do a query to a server, the server calculates the whole recordset, and `fetchiter` retrieve the results iteratively to avoid fill the process memory, a server cursor runs the pseudo-iterator on a Postgres server and calculates the partial recordset in blocks iteratively. 
 
+See more about PostgreSQL cursors in the [PostgreSQL documentation](http://www.postgresql.org/docs/9.3/static/plpgsql-cursors.html).
+
 ```python
 from dbhelpers import fetchiter
 
