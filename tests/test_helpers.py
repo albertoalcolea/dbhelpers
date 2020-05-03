@@ -1,5 +1,8 @@
 import unittest
-from unittest.mock import Mock, call
+try:
+    from unittest.mock import Mock, call
+except ImportError:
+    from mock import Mock, call
 
 from dbhelpers import cm_cursor, fetchiter, fetchone_nt, fetchmany_nt, fetchall_nt, fetchiter_nt
 
