@@ -2,8 +2,10 @@ dbhelpers
 =========
 
 [![Build Status](https://travis-ci.org/albertoalcolea/dbhelpers.svg?branch=master)](https://travis-ci.org/albertoalcolea/dbhelpers)
+[![Latest PyPI Version](https://img.shields.io/pypi/v/dbhelpers.svg)](https://pypi.python.org/pypi/dbhelpers)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/dbhelpers.svg)](https://pypi.python.org/pypi/dbhelpers)
 
-Database helpers and utilities
+Database helpers and utilities.
 
 This is not an ORM, is a set of useful utilities to work with raw queries using the Python Database API Specification.
 
@@ -75,8 +77,8 @@ class MyCustomBackendConnection(BaseConnection):
 
     def connect(self):
         """Returns a new connection object."""
-        return customadapter.connect(database=self.db, user=self.user, 
-            password=self.passwd, host=self.host, port=self.port, 
+        return customadapter.connect(database=self.db, user=self.user,
+            password=self.passwd, host=self.host, port=self.port,
             **self.extra_kwargs)
 ```
 
@@ -143,7 +145,7 @@ with customconn('mydb') as conn:
 
 Also, `fetchiter` allows work with PostgreSQL server cursors previously declared.
 
-Instead of the standard `fetchiter` behavior, which do a query to a server, the server calculates the whole recordset, and `fetchiter` retrieve the results iteratively to avoid fill the process memory, a server cursor runs the pseudo-iterator on a Postgres server and calculates the partial recordset in blocks iteratively. 
+Instead of the standard `fetchiter` behavior, which do a query to a server, the server calculates the whole recordset, and `fetchiter` retrieve the results iteratively to avoid fill the process memory, a server cursor runs the pseudo-iterator on a Postgres server and calculates the partial recordset in blocks iteratively.
 
 See more about PostgreSQL cursors in the [PostgreSQL documentation](http://www.postgresql.org/docs/9.3/static/plpgsql-cursors.html).
 
